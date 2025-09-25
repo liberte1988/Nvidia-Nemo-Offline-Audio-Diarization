@@ -12,7 +12,7 @@ app.secret_key = "supersecretkey"  # Для флеш-сообщений
 
 # Отключение логов Werkzeug уровня INFO
 log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)  # Показываем только ошибки Werkzeug
+log.setLevel(logging.ERROR)
 
 AUDIO_DIR = Path("audio")
 RESULTS_DIR = Path("results")
@@ -24,7 +24,7 @@ TEMPLATES_DIR.mkdir(exist_ok=True)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger(__name__)
 
-# HTML шаблоны с Tailwind CSS
+# HTML шаблоны с Tailwind CSS (без изменений)
 INDEX_HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -149,7 +149,7 @@ INDEX_HTML = """
             }, 3000);
         }
         window.onload = function() {
-            updateModels(); // Инициализация списка моделей при загрузке
+            updateModels();
         };
     </script>
 </head>
@@ -339,7 +339,14 @@ def process():
 
     logger.info(f"🚀 Запуск команды: {' '.join(cmd)}")
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        # Явно указываем кодировку utf-8 для subprocess
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace'  # Заменяем неподдерживаемые символы
+        )
         logger.info(result.stdout)
         # Игнорируем предупреждения NeMo в stderr
         if result.stderr and "[NeMo W" in result.stderr:
@@ -350,6 +357,9 @@ def process():
     except subprocess.CalledProcessError as e:
         logger.error(e.stderr)
         return jsonify({"success": False, "message": e.stderr})
+    except UnicodeDecodeError as e:
+        logger.error(f"Ошибка декодирования вывода: {e}")
+        return jsonify({"success": False, "message": f"Ошибка декодирования: {e}"})
 
     result_files = [f.name for f in RESULTS_DIR.iterdir() if f.is_file()]
     if not result_files:

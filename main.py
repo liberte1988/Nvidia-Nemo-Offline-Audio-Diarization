@@ -11,6 +11,12 @@ from omegaconf import OmegaConf
 import logging
 import argparse
 
+# Настройка кодировки консоли для Windows
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger(__name__)
 
@@ -26,7 +32,6 @@ else:
     logger.info(f"✅ Используется GPU: {torch.cuda.get_device_name(0)}")
 
 def load_asr_model(language: str, model_type: str, model_name: str) -> object:
-    # Список доступных моделей
     transducer_models_en = [
         "stt_en_conformer_transducer_large", "stt_en_conformer_transducer_large_ls",
         "stt_en_conformer_transducer_medium", "stt_en_conformer_transducer_small",
@@ -91,7 +96,7 @@ def load_asr_model(language: str, model_type: str, model_name: str) -> object:
 
 def convert_to_wav(audio_path: Path) -> Path:
     if audio_path.suffix.lower() != ".wav":
-        logger.info(f"🔄 Конвертация {audio_path.name} в WAV...")
+        logger.info(f">> Конвертация {audio_path.name} в WAV...")
         audio = AudioSegment.from_file(audio_path)
         audio = audio.set_frame_rate(16000).set_channels(1)
         wav_path = audio_path.with_suffix(".wav")
@@ -112,7 +117,7 @@ def transcribe_audio(audio_path: Path, asr_model) -> str:
         hypotheses = asr_model.transcribe([audio_tensor], batch_size=1)
     text = hypotheses[0].text if hasattr(hypotheses[0], 'text') else hypotheses[0]
     logger.info(f"📝 Распознано: {text[:100]}...")
-    torch.cuda.empty_cache()  # Очистка памяти после транскрипции
+    torch.cuda.empty_cache()
     return text
 
 def diarize_and_transcribe(audio_path: Path, asr_model) -> str:
@@ -121,7 +126,6 @@ def diarize_and_transcribe(audio_path: Path, asr_model) -> str:
     temp_dir = RESULTS_DIR / "temp_diarization"
     temp_dir.mkdir(exist_ok=True)
 
-    # Создаём манифест
     manifest_path = temp_dir / "manifest.json"
     with open(manifest_path, "w", encoding="utf-8") as f:
         import json
@@ -136,7 +140,6 @@ def diarize_and_transcribe(audio_path: Path, asr_model) -> str:
         }
         f.write(json.dumps(entry) + "\n")
 
-    # Загружаем конфигурацию из YAML
     config_path = Path("diarizer_config.yaml")
     if not config_path.exists():
         logger.error(f"❌ Файл конфигурации {config_path} не найден!")
@@ -146,7 +149,6 @@ def diarize_and_transcribe(audio_path: Path, asr_model) -> str:
     config = OmegaConf.load(config_path)
     logger.info(f"🔍 Конфигурация VAD: {config.diarizer.vad}")
 
-    # Обновляем пути в конфигурации
     config.diarizer.manifest_filepath = str(manifest_path)
     config.diarizer.out_dir = str(temp_dir)
 
@@ -193,7 +195,7 @@ def diarize_and_transcribe(audio_path: Path, asr_model) -> str:
         text = hyp[0].text if hasattr(hyp[0], 'text') else hyp[0]
         if text:
             full_text.append(f"[{speaker}] {start:.2f}-{end:.2f}s: {text}")
-        torch.cuda.empty_cache()  # Очистка памяти после каждого сегмента
+        torch.cuda.empty_cache()
 
     import shutil
     shutil.rmtree(temp_dir, ignore_errors=True)
@@ -209,19 +211,17 @@ def main():
     parser.add_argument("--model_name", required=True, help="Specific model name to use (e.g., stt_en_conformer_ctc_large)")
     args = parser.parse_args()
 
-    # Проверка взаимоисключающих аргументов
     if args.transducer and args.ctc:
         raise ValueError("Можно выбрать только один тип модели: --transducer или --ctc")
     if not args.transducer and not args.ctc:
         raise ValueError("Необходимо выбрать тип модели: --transducer или --ctc")
 
-    # Определение типа модели
     model_type = "transducer" if args.transducer else "ctc"
 
     asr_model = load_asr_model(args.language, model_type, args.model_name)
     use_diarization = args.diarization
     mode_name = "ASR + Диаризация" if use_diarization else "Только ASR"
-    logger.info(f"▶️ Режим: {mode_name} | Язык: {args.language} | Тип модели: {model_type} | Модель: {args.model_name}")
+    logger.info(f">> Режим: {mode_name} | Язык: {args.language} | Тип модели: {model_type} | Модель: {args.model_name}")
 
     audio_files = [f for f in AUDIO_DIR.iterdir() if f.suffix.lower() in (".wav", ".mp3", ".flac", ".ogg")]
 
@@ -230,7 +230,7 @@ def main():
         return
 
     for audio_file in audio_files:
-        print(f"\n🔄 Обработка: {audio_file.name}")
+        print(f"\n>> Обработка: {audio_file.name}")
 
         wav_path = convert_to_wav(audio_file)
         output_file = RESULTS_DIR / (wav_path.stem + ".txt")
@@ -251,7 +251,7 @@ def main():
         except Exception as e:
             logger.error(f"❌ Ошибка при обработке {audio_file.name}: {e}")
 
-        torch.cuda.empty_cache()  # Очистка памяти после обработки файла
+        torch.cuda.empty_cache()
 
     print(f"\n🎉 Все файлы обработаны! Результаты в папке '{RESULTS_DIR}'")
 
