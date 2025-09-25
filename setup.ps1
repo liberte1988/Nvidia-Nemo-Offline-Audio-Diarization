@@ -109,6 +109,7 @@ $env:PYTORCH_CUDA_ALLOC_CONF = "expandable_segments:True"
 
 Write-Host "`n🎉 Установка завершена!" -ForegroundColor Green
 Write-Host "👉 Убедитесь, что файл diarizer_config.yaml существует в корне проекта"
-Write-Host "👉 Запустите веб сервер: python main.py" -ForegroundColor Cyan
+Write-Host "👉 Запустите веб сервер: python server.py" -ForegroundColor Cyan
 Write-Host "👉 1: python main.py" -ForegroundColor Cyan
+
 Write-Host "👉 2: через start-web-server.bat" -ForegroundColor Cyan
