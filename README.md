@@ -120,7 +120,7 @@
 
 ## 📧 Контакты
 
-Если у вас есть вопросы или предложения, пишите в [issues](https://github.com/yourusername/offline-audio-diarization/issues).
+Если у вас есть вопросы или предложения, пишите в [issues](https://github.com/liberte1988/offline-audio-diarization/issues).
 
 ---
 
